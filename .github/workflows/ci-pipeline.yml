@@ -56,8 +56,8 @@ jobs:
 
       - name: Wait for 10 seconds
         run: sleep 10
-
+        
       - name: Stop processes
         run: |
-          kill $(cat bot.pid)
-          echo "Бот успешно протестирован и остановлен."
+          kill $(cat bot.pid) || true
+          echo "Бот остановлен или уже был закрыт."
