@@ -1,55 +1,63 @@
-name: Java CI with Maven and Bot Test
+name: Java Bot CI Pipeline
 
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
 
+    # Поднимаем временный PostgreSQL для теста
+    services:
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_DB: tgBot
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: hackergs228
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
-    # 1. Checkout кода
-    - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    # 2. Установка JDK 11
-    - name: Set up JDK 11
-      uses: actions/setup-java@v4
-      with:
-        java-version: '11'
-        distribution: 'temurin'
-        cache: maven
+      - name: Set up JDK 17 # Рекомендую 17, но можно и 11
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
 
-    # 3. Сборка проекта
-    - name: Build with Maven
-      run: mvn clean compile
+      - name: Build with Maven
+        run: mvn clean compile
 
-    # 4. Запуск бота в фоновом режиме
-    # Используем '&' для запуска в фоне и записываем PID, чтобы потом закрыть
-    - name: Start Bot in Background
-      run: |
-        mvn exec:java -Dexec.mainClass="com.example.Main" & 
-        echo $! > bot.pid
-      env:
-        BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-        BOT_NAME: ${{ secrets.BOT_NAME }}
+      - name: Run Bot in background
+        env:
+          # Эти переменные должны быть в Settings -> Secrets вашего репозитория
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          BOT_NAME: ${{ secrets.BOT_NAME }}
+        run: |
+          mvn exec:java -Dexec.mainClass="com.bot.clients.Main" & 
+          echo $! > bot.pid
+          sleep 5 # Даем время на подключение к БД
 
-    # 5. Отправка тестового сообщения (через curl к API Telegram)
-    # Это проверит, что токен рабочий и бот может принимать запросы
-    - name: Send Test Message
-      run: |
-        curl -s -X POST https://api.telegram.org/bot${{ secrets.BOT_TOKEN }}/sendMessage \
-        -d chat_id=${{ secrets.TEST_CHAT_ID }} \
-        -d text="CI Pipeline Test: Сборка прошла успешно!"
+      - name: Send Test Message to Telegram
+        run: |
+          curl -s -X POST https://api.telegram.org/bot${{ secrets.BOT_TOKEN }}/sendMessage \
+          -d chat_id=${{ secrets.TEST_CHAT_ID }} \
+          -d text="🚀 CI Pipeline: Проект собран, база подключена, бот в сети!"
 
-    # 6. Ожидание 10 секунд
-    - name: Wait for 10 seconds
-      run: sleep 10
+      - name: Wait for 10 seconds
+        run: sleep 10
 
-    # 7. Завершение всех процессов
-    - name: Stop Bot
-      run: |
-        kill $(cat bot.pid)
-        echo "Bot stopped."
+      - name: Stop processes
+        run: |
+          kill $(cat bot.pid)
+          echo "Бот успешно протестирован и остановлен."
