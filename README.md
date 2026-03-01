@@ -1,2 +1,19 @@
-# databasebot
-This bot can write customer data to the database.
+# Telegram Client Manager Bot 🤖
+
+Бот на Java для управления базой данных клиентов через Telegram.
+
+## Технологии
+* **Java 17+**
+* **Maven** (сборка)
+* **PostgreSQL** (база данных)
+* **TelegramBots Library** (6.8.0)
+
+## Требования
+1. Установленный **PostgreSQL**.
+2. Созданная база данных `tgBot`.
+3. Токен бота от [@BotFather](https://t.me/BotFather).
+
+## Как запустить локально
+1. Клонируйте репозиторий:
+   ```bash
+   git clone [https://github.com/ваш-аккаунт/databasebot.git](https://github.com/ваш-аккаунт/databasebot.git)
