@@ -1,1 +1,55 @@
+name: Java CI with Maven and Bot Test
 
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. Checkout кода
+    - uses: actions/checkout@v4
+
+    # 2. Установка JDK 11
+    - name: Set up JDK 11
+      uses: actions/setup-java@v4
+      with:
+        java-version: '11'
+        distribution: 'temurin'
+        cache: maven
+
+    # 3. Сборка проекта
+    - name: Build with Maven
+      run: mvn clean compile
+
+    # 4. Запуск бота в фоновом режиме
+    # Используем '&' для запуска в фоне и записываем PID, чтобы потом закрыть
+    - name: Start Bot in Background
+      run: |
+        mvn exec:java -Dexec.mainClass="com.example.Main" & 
+        echo $! > bot.pid
+      env:
+        BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        BOT_NAME: ${{ secrets.BOT_NAME }}
+
+    # 5. Отправка тестового сообщения (через curl к API Telegram)
+    # Это проверит, что токен рабочий и бот может принимать запросы
+    - name: Send Test Message
+      run: |
+        curl -s -X POST https://api.telegram.org/bot${{ secrets.BOT_TOKEN }}/sendMessage \
+        -d chat_id=${{ secrets.TEST_CHAT_ID }} \
+        -d text="CI Pipeline Test: Сборка прошла успешно!"
+
+    # 6. Ожидание 10 секунд
+    - name: Wait for 10 seconds
+      run: sleep 10
+
+    # 7. Завершение всех процессов
+    - name: Stop Bot
+      run: |
+        kill $(cat bot.pid)
+        echo "Bot stopped."
